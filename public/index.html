@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Example of using LLM</title>
+  <style>
+      body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 100vh;
+          margin: 0;
+          background: radial-gradient(circle, #4a90e2 0%, #9013fe 100%);
+          color: white;
+          direction: rtl;
+          text-align: right;
+      }
+
+      .container {
+          text-align: center;
+          background: rgba(255, 255, 255, 0.1);
+          padding: 50px;
+          border-radius: 20px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+          backdrop-filter: blur(12px);
+          max-width: 800px;
+          width: 100%;
+      }
+
+      .logo img {
+          width: 160px;
+          margin-bottom: 20px;
+          transition: transform 0.5s ease;
+      }
+
+      .container:hover .logo img {
+          transform: scale(1.1);
+      }
+
+      h1 {
+          margin-bottom: 20px;
+          font-size: 32px;
+          color: #ffcc33;
+          text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
+          text-align: center;
+      }
+
+      input[type="text"], button {
+          padding: 15px;
+          font-size: 18px;
+          margin: 10px 0;
+          border-radius: 10px;
+          border: none;
+          width: 100%;
+          max-width: 600px;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+          text-align: right; /* יישור לימין בשדה הטקסט */
+      }
+
+      input[type="text"] {
+          background-color: rgba(255, 255, 255, 0.85);
+          color: #333;
+          outline: none;
+          transition: box-shadow 0.3s ease;
+      }
+
+      input[type="text"]:focus {
+          box-shadow: 0 4px 20px rgba(255, 255, 255, 0.5);
+      }
+
+      button {
+          background-color: #ff8000;
+          color: white;
+          cursor: pointer;
+          transition: background-color 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      button:hover {
+          background-color: #e65c00;
+          box-shadow: 0 4px 15px rgba(255, 128, 0, 0.6);
+      }
+
+      .answer {
+          margin-top: 30px;
+          font-size: 20px;
+          color: #fefefe;
+          text-shadow: 1px 1px 8px rgba(0, 0, 0, 0.4);
+          animation: fadeIn 1s ease forwards;
+          text-align: right;
+      }
+
+      a {
+          color: #ffcc33;
+          text-decoration: none;
+      }
+
+      a:hover {
+          text-decoration: underline;
+      }
+
+      ol {
+          padding-right: 0;
+          list-style-position: inside;
+      }
+
+      .footer {
+          margin-top: 40px;
+          font-size: 14px;
+          color: #ccc;
+          text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.3);
+          text-align: center;
+      }
+
+      .footer img {
+          width: 40px;
+          vertical-align: middle;
+          margin-right: 10px;
+      }
+
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <img src="logo.svg" alt="לוגו מפעל הפיס">
+  </div>
+  <h1>שאל את שאלתך</h1>
+  <input type="text" id="question" placeholder="הכנס את שאלתך כאן">
+  <button onclick="askQuestion()">שאל</button>
+  <div class="answer" id="answer"></div>
+  <div class="footer">
+    <img src="ness-logo.jpg" alt="לוגו Ness Technologies"> פותח על ידי Ness Technologies
+  </div>
+</div>
+
+<script>
+  async function askQuestion() {
+    const question = document.getElementById('question').value;
+    const response = await fetch('/openai/ask', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ question }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+
+      // Replace new lines (\n) with <br> for proper line breaks in HTML
+      let formattedAnswer = data.answer.replace(/\n/g, '<br>');
+
+      // Add numbering for answers where necessary
+      formattedAnswer = formattedAnswer.replace(/(\d+\.)/g, '<strong>$1</strong>');
+
+      // Remove markdown syntax (like ** and ###)
+      formattedAnswer = formattedAnswer.replace(/\*\*/g, '');  // Remove ** (bold markers)
+      formattedAnswer = formattedAnswer.replace(/#/g, '');     // Remove # (heading markers)
+
+      // Convert Markdown-style links to clickable <a> tags
+      formattedAnswer = formattedAnswer.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(match, text, url) {
+        // If the URL is valid (starts with http:// or https://), make it clickable
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+          return `<a href="${url}" target="_blank">${text}</a>`;
+        } else {
+          return text;  // If the URL is invalid, just display the text without a link
+        }
+      });
+
+      // Display the formatted answer in the answer div
+      document.getElementById('answer').innerHTML = formattedAnswer;
+    } else {
+      document.getElementById('answer').innerHTML = 'אירעה שגיאה בעת שליחת השאלה. אנא נסה שוב.';
+    }
+  }
+
+</script>
+</body>
+</html>
