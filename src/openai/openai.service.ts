@@ -13,7 +13,7 @@ export class OpenAiService {
 
   constructor() {
     const configuration = new Configuration({
-      //apiKey: process.env.OPENAI_API_KEY,
+      apiKey: '',
     });
     this.openai = new OpenAIApi(configuration);
 
@@ -43,11 +43,22 @@ export class OpenAiService {
     }
   }
 
+  // Check if the index exists
+  async doesIndexExist(indexName: string): Promise<boolean> {
+    try {
+      const response = await this.esClient.indices.exists({ index: indexName });
+      return response as boolean;
+    } catch (error) {
+      console.error('Error checking index existence:', error.message);
+      return false;
+    }
+  }
+
   // Send the website content and the user's question to OpenAI
   async askOpenAi(question: string, websiteContent: string): Promise<string> {
     try {
       const response = await this.openai.createChatCompletion({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4',
         messages: [
           {
             role: 'system',
@@ -61,17 +72,28 @@ export class OpenAiService {
         max_tokens: 1000,
       });
 
-      // Extract and format the response
+      console.log('OpenAI Response:', response.data);
+      if (!response || !response.data || !response.data.choices || response.data.choices.length === 0) {
+        throw new Error('No response from OpenAI or choices are missing');
+      }
+
       let answer = response.data.choices[0].message.content.trim();
-      answer = answer.replace(/\*\*/g, '').replace(/#/g, ''); // Remove markdown-like syntax
+      answer = answer.replace(/\*\*/g, '').replace(/#/g, '');
 
       // Save question and answer to Elasticsearch
       const userQuestion = question;
       const generatedAnswer = answer;
 
-      // Save to Elasticsearch under index 'questions'
+      // Check if index exists before saving
+      const indexName = 'questions';
+      const indexExists = await this.doesIndexExist(indexName);
+      if (!indexExists) {
+        await this.esClient.indices.create({ index: indexName });
+        console.log(`Index "${indexName}" created.`);
+      }
+
       const responseElastic = await this.esClient.index({
-        index: 'questions', // Use the index pattern for questions
+        index: indexName, // Use the index pattern for questions
         body: {
           question: userQuestion,
           answer: generatedAnswer,
@@ -82,7 +104,7 @@ export class OpenAiService {
       console.log('Question saved to Elasticsearch:', responseElastic);
       return answer;
     } catch (error) {
-      console.error('Error calling OpenAI API or saving to Elasticsearch:', error.response ? error.response.status : error.message);
+      console.error('Error calling OpenAI API or saving to Elasticsearch:', error.response ? error.response.data : error.message);
       throw new Error('Failed to get response from OpenAI API or save to Elasticsearch');
     }
   }
