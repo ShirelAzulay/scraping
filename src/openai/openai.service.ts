@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { Configuration, OpenAIApi } from 'openai';
 import axios from 'axios';
 import * as cheerio from 'cheerio'; // For parsing HTML content
+import * as dotenv from 'dotenv'; // Import dotenv to load environment variables
+//dotenv.config(); // Load environment variables from .env file
 
 @Injectable()
 export class OpenAiService {
@@ -9,7 +11,7 @@ export class OpenAiService {
 
   constructor() {
     const configuration = new Configuration({
-      apiKey: '',
+      apiKey: ''
     });
     this.openai = new OpenAIApi(configuration);
   }
@@ -38,7 +40,7 @@ export class OpenAiService {
   async askOpenAi(question: string, websiteContent: string): Promise<string> {
     try {
       const response = await this.openai.createChatCompletion({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -52,19 +54,25 @@ export class OpenAiService {
         max_tokens: 1000,
       });
 
-      // Extract and format the response
-      let answer = response.data.choices[0].message.content.trim();
+      console.log('OpenAI Response:', response.data);
+      if (!response || !response.data || !response.data.choices || response.data.choices.length === 0) {
+        throw new Error('No response from OpenAI or choices are missing');
+      }
 
-      // Format answer (if additional formatting is needed)
-      answer = answer.replace(/\*\*/g, '').replace(/#/g, ''); // Remove markdown-like syntax
+      let answer = response.data.choices[0].message.content.trim();
+      answer = answer.replace(/\*\*/g, '').replace(/#/g, '');
+
+      // Save question and answer to Elasticsearch
+      const userQuestion = question;
+      const generatedAnswer = answer;
+
+
+
+
       return answer;
     } catch (error) {
-      console.error('Error calling OpenAI API:', error.response ? error.response.status : error.message);
-      throw new Error('Failed to get response from OpenAI API');
+      console.error('Error calling OpenAI API or saving to Elasticsearch:', error.response ? error.response.data : error.message);
+      throw new Error('Failed to get response from OpenAI API or save to Elasticsearch');
     }
   }
-
-
-
-
 }
