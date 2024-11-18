@@ -4,7 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 @Module({
-  imports: [OpenAiModule],  // הוספת OpenAiModule ל-imports
+  imports: [OpenAiModule],
   controllers: [AppController],
   providers: [AppService],
 })

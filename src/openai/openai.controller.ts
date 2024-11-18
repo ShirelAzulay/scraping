@@ -8,7 +8,8 @@ export class OpenAiController {
   // Endpoint for receiving the user's question
   @Post('ask')
   async askQuestion(@Body('question') question: string) {
-    const url = 'https://www.pais.co.il/';
+    console.log('Service:', this.openAiService);
+    const url = 'https://www.bank-yahav.co.il/';
     const websiteContent = await this.openAiService.fetchWebsiteContent(url);
     const answer = await this.openAiService.askOpenAi(question, websiteContent);
     return { answer };
