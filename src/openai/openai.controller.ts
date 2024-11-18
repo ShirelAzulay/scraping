@@ -1,46 +1,49 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, OnModuleInit } from '@nestjs/common';
 import { OpenAiService } from './openai.service';
-import * as fs from 'fs';
-import * as path from 'path';
 
 @Controller('openai')
-export class OpenAiController {
+export class OpenAiController implements OnModuleInit {
   constructor(private readonly openAiService: OpenAiService) {}
 
-  // Endpoint for receiving the user's question and reading from a URL
-  @Post('ask-from-url')
-  async askFromUrl(@Body('question') question: string, @Body('url') url: string) {
-    console.log('Service:', this.openAiService);
+  private memory = { urlContent: '', fileContent: '' };
 
-    if (!url) {
-      throw new Error('URL is required for this endpoint.');
+  async onModuleInit(): Promise<void> {
+    try {
+      // Initialize content for URL and file on server start
+      this.memory.urlContent = await this.openAiService.fetchWebsiteContent('https://www.bank-yahav.co.il/');
+      this.memory.fileContent = await this.openAiService.readLocalFile('loan_info.html');
+      console.log('Content initialized successfully.');
+    } catch (error) {
+      console.error('Error initializing content:', error.message);
+      throw new Error('Failed to initialize content.');
     }
-
-    // Fetch content from the URL
-    const websiteContent = await this.openAiService.fetchWebsiteContent(url);
-    const answer = await this.openAiService.askOpenAi(question, websiteContent);
-    return { answer };
   }
 
-  // Endpoint for receiving the user's question and reading from a local HTML file
-  @Post('ask-from-file')
-  async askFromFile(@Body('question') question: string) {
-    console.log('Service:', this.openAiService);
-
-    // Path to the local HTML file in the `public` directory
-    const filePath = path.join(__dirname, '..', '..', 'public', 'loan_info.html');
-    let websiteContent: string;
-
+  @Post('ask-from-url')
+  async askFromUrl(@Body('question') question: string): Promise<{ answer: string } | { error: string }> {
     try {
-      // Read the file content
-      websiteContent = fs.readFileSync(filePath, 'utf-8');
+      if (!this.memory.urlContent) {
+        throw new Error('Content for URL not found.');
+      }
+      const answer = await this.openAiService.getAnswerFromInitializedContent(question, this.memory.urlContent);
+      return { answer };
     } catch (error) {
-      console.error('Error reading loan_info.html:', error.message);
-      throw new Error('Failed to read the local HTML file.');
+      console.error('Error in askFromUrl:', error.message);
+      return { error: 'Failed to process the request from URL.' };
     }
+  }
 
-    // Send the question to OpenAI with the file content
-    const answer = await this.openAiService.askOpenAi(question, websiteContent);
-    return { answer };
+  @Post('ask-from-file')
+  async askFromFile(@Body('question') question: string): Promise<{ answer: string } | { error: string }> {
+    try {
+      if (!this.memory.fileContent) {
+        throw new Error('Content for file not found.');
+      }
+      const answer = await this.openAiService.getAnswerFromInitializedContent(question, this.memory.fileContent);
+      return { answer };
+    } catch (error) {
+      console.error('Error in askFromFile:', error.message);
+      return { error: 'Failed to process the request from file.' };
+    }
   }
 }

@@ -10,7 +10,7 @@
         transform: scale(1);
       }
       50% {
-        transform: scale(1.1); /* הגדלת הלוגו ב-10% */
+        transform: scale(1.1);
       }
       100% {
         transform: scale(1);
@@ -25,7 +25,7 @@
       justify-content: center;
       min-height: 100vh;
       margin: 0;
-      background: linear-gradient(to bottom, #003366, #0066cc, #99ccff); /* כחול כהה לכחול בהיר */
+      background: linear-gradient(to bottom, #003366, #0066cc, #99ccff);
       color: white;
       direction: rtl;
       text-align: right;
@@ -53,7 +53,6 @@
       font-size: 32px;
       color: #ffffff;
       text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
-      text-align: center;
     }
 
     input[type="text"], button {
@@ -70,7 +69,7 @@
 
     input[type="text"] {
       background-color: rgba(255, 255, 255, 0.85);
-      color: #003366; /* כחול כהה */
+      color: #003366;
       outline: none;
       transition: box-shadow 0.3s ease;
     }
@@ -97,21 +96,6 @@
       color: #ffffff;
       text-shadow: 1px 1px 8px rgba(0, 0, 0, 0.4);
       animation: fadeIn 1s ease forwards;
-      text-align: right;
-    }
-
-    a {
-      color: #ffcc33;
-      text-decoration: none;
-    }
-
-    a:hover {
-      text-decoration: underline;
-    }
-
-    ol {
-      padding-right: 0;
-      list-style-position: inside;
     }
 
     .footer {
@@ -131,9 +115,58 @@
       margin-left: 10px;
     }
 
+    .dropdown {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+    }
+
+    .dropdown select {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: none;
+      background-color: rgba(255, 255, 255, 0.8);
+      color: #003366;
+    }
+
+    .formatted-answer {
+      text-align: right;
+      direction: rtl;
+      line-height: 1.8;
+      font-size: 18px;
+      color: #ffffff;
+      text-shadow: 1px 1px 8px rgba(0, 0, 0, 0.4);
+      margin-top: 20px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .formatted-answer strong {
+      color: #ffcc33;
+    }
+
+    .formatted-answer a {
+      color: #ffcc33;
+      text-decoration: none;
+    }
+
+    .formatted-answer a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
+<div class="dropdown">
+  <label for="source">מקור:</label>
+  <select id="source">
+    <option value="url">URL</option>
+    <option value="file">File</option>
+  </select>
+</div>
+
 <div class="container">
   <div class="logo">
     <img src="new-logo-medium.jpg" alt="לוגו בנק יהב">
@@ -151,33 +184,42 @@
 <script>
   async function askQuestion() {
     const question = document.getElementById('question').value;
-    const response = await fetch('/openai/ask-from-file', { // שינוי לנתיב הקריאה מהקובץ
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ question }),
-    });
+    const source = document.getElementById('source').value;
 
-    if (response.ok) {
-      const data = await response.json();
+    const endpoint = source === 'url' ? '/openai/ask-from-url' : '/openai/ask-from-file';
+    const body = source === 'url'
+            ? JSON.stringify({ question, url: 'https://www.bank-yahav.co.il/' })
+            : JSON.stringify({ question });
 
-      let formattedAnswer = data.answer.replace(/\n/g, '<br>');
-      formattedAnswer = formattedAnswer.replace(/(\d+\.)/g, '<strong>$1</strong>');
-      formattedAnswer = formattedAnswer.replace(/\*\*/g, '');
-      formattedAnswer = formattedAnswer.replace(/#/g, '');
-      formattedAnswer = formattedAnswer.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(match, text, url) {
-        if (url.startsWith('http://') || url.startsWith('https://')) {
-          return `<a href="${url}" target="_blank">${text}</a>`;
-        } else {
-          return text;
-        }
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
       });
 
-      document.getElementById('answer').innerHTML = formattedAnswer;
-    } else {
-      document.getElementById('answer').innerHTML = 'אירעה שגיאה בעת שליחת השאלה. אנא נסה שוב.';
+      if (response.ok) {
+        const data = await response.json();
+        const formattedAnswer = formatAnswer(data.answer);
+        document.getElementById('answer').innerHTML = formattedAnswer || 'לא התקבלה תשובה.';
+      } else {
+        document.getElementById('answer').innerHTML = 'אירעה שגיאה. נסה שוב מאוחר יותר.';
+      }
+    } catch (error) {
+      console.error(error);
+      document.getElementById('answer').innerHTML = 'אירעה שגיאה. נסה שוב מאוחר יותר.';
     }
+  }
+
+  function formatAnswer(answer) {
+    let formattedAnswer = answer.replace(/\n/g, '<br>');
+    formattedAnswer = formattedAnswer.replace(/(\d+\.)/g, '<strong>$1</strong>');
+    formattedAnswer = formattedAnswer.replace(/\*\*/g, '').replace(/#/g, '');
+    formattedAnswer = formattedAnswer.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(match, text, url) {
+      return `<a href="${url}" target="_blank">${text}</a>`;
+    });
+
+    return `<div class="formatted-answer">${formattedAnswer}</div>`;
   }
 </script>
 </body>
