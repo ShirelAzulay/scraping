@@ -132,3 +132,4 @@ dist
 *.iml
 
 /.idea/*
+package-lock.json

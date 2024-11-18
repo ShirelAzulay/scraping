@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Example of using LLM</title>
+  <title>LLM Example - Ness - Shirel</title>
   <style>
     @keyframes pulse {
       0% {
@@ -151,7 +151,7 @@
 <script>
   async function askQuestion() {
     const question = document.getElementById('question').value;
-    const response = await fetch('/openai/ask', {
+    const response = await fetch('/openai/ask-from-file', { // שינוי לנתיב הקריאה מהקובץ
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
