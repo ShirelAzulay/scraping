@@ -43,16 +43,15 @@
     }
 
     .logo img {
-      width: 320px; /* גודל הלוגו */
+      width: 320px;
       margin-bottom: 20px;
-      border-radius: 50%; /* לוגו עגול */
-      animation: pulse 2s infinite ease-in-out; /* הנפשה מחזורית */
+      animation: pulse 2s infinite ease-in-out;
     }
 
     h1 {
       margin-bottom: 20px;
       font-size: 32px;
-      color: #ffffff; /* טקסט בצבע לבן */
+      color: #ffffff;
       text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
       text-align: center;
     }
@@ -81,14 +80,14 @@
     }
 
     button {
-      background-color: #0066cc; /* כחול בינוני */
+      background-color: #0066cc;
       color: white;
       cursor: pointer;
       transition: background-color 0.3s ease, box-shadow 0.3s ease;
     }
 
     button:hover {
-      background-color: #004c99; /* כחול כהה */
+      background-color: #004c99;
       box-shadow: 0 4px 15px rgba(0, 102, 204, 0.6);
     }
 
@@ -121,12 +120,15 @@
       color: #ffffff;
       text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.3);
       text-align: center;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
     .footer img {
-      width: 80px; /* הגדלת גודל הלוגו בתחתית */
+      width: 40px;
       vertical-align: middle;
-      margin-right: 10px;
+      margin-left: 10px;
     }
 
   </style>
@@ -134,14 +136,15 @@
 <body>
 <div class="container">
   <div class="logo">
-    <img src="new-logo-medium.jpg" alt="לוגו">
+    <img src="new-logo-medium.jpg" alt="לוגו בנק יהב">
   </div>
   <h1>שאל את שאלתך</h1>
   <input type="text" id="question" placeholder="הכנס את שאלתך כאן">
   <button onclick="askQuestion()">שאל</button>
   <div class="answer" id="answer"></div>
   <div class="footer">
-    <img src="new-logo-medium.jpg" alt="לוגו Ness Technologies"> פותח על ידי Ness Technologies
+    <img src="ness-logo.jpg" alt="לוגו Ness Technologies">
+    פותח על ידי Ness Technologies
   </div>
 </div>
 
@@ -176,7 +179,6 @@
       document.getElementById('answer').innerHTML = 'אירעה שגיאה בעת שליחת השאלה. אנא נסה שוב.';
     }
   }
-
 </script>
 </body>
 </html>
