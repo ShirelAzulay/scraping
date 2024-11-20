@@ -9,9 +9,8 @@ export class OpenAiController implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     try {
-      // Initialize content for URL and file on server start
       this.memory.urlContent = await this.openAiService.fetchWebsiteContent('https://www.bank-yahav.co.il/');
-      this.memory.fileContent = await this.openAiService.readLocalFile('loan_info.html');
+      this.memory.fileContent = await this.openAiService.readLocalFiles('customer_input');
       console.log('Content initialized successfully.');
     } catch (error) {
       console.error('Error initializing content:', error.message);
@@ -37,13 +36,19 @@ export class OpenAiController implements OnModuleInit {
   async askFromFile(@Body('question') question: string): Promise<{ answer: string } | { error: string }> {
     try {
       if (!this.memory.fileContent) {
-        throw new Error('Content for file not found.');
+        throw new Error('Content for files not found.');
       }
-      const answer = await this.openAiService.getAnswerFromInitializedContent(question, this.memory.fileContent);
-      return { answer };
+
+      const parts = this.openAiService.splitContent(this.memory.fileContent, 3000); // Split content into smaller parts
+      const answers = [];
+      for (const part of parts) {
+        const answer = await this.openAiService.getAnswerFromInitializedContent(question, part);
+        answers.push(answer);
+      }
+      return { answer: answers.join('\n') };
     } catch (error) {
       console.error('Error in askFromFile:', error.message);
-      return { error: 'Failed to process the request from file.' };
+      return { error: 'Failed to process the request from files.' };
     }
   }
 }
