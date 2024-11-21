@@ -8,47 +8,49 @@ export class OpenAiController implements OnModuleInit {
   private memory = { urlContent: '', fileContent: '' };
 
   async onModuleInit(): Promise<void> {
+    console.log('--- Initializing Content ---');
     try {
       this.memory.urlContent = await this.openAiService.fetchWebsiteContent('https://www.bank-yahav.co.il/');
+      console.log('Initialized URL Content:', this.memory.urlContent);
+
       this.memory.fileContent = await this.openAiService.readLocalFiles('customer_input');
-      console.log('Content initialized successfully.');
+      console.log('Initialized File Content:', this.memory.fileContent);
     } catch (error) {
-      console.error('Error initializing content:', error.message);
-      throw new Error('Failed to initialize content.');
+      console.error('Error during initialization:', error.message);
     }
   }
 
   @Post('ask-from-url')
   async askFromUrl(@Body('question') question: string): Promise<{ answer: string } | { error: string }> {
+    console.log('--- Received Request for Ask from URL ---');
+    console.log('Question:', question);
+
     try {
-      if (!this.memory.urlContent) {
-        throw new Error('Content for URL not found.');
-      }
       const answer = await this.openAiService.getAnswerFromInitializedContent(question, this.memory.urlContent);
+      console.log('Answer:', answer);
       return { answer };
     } catch (error) {
       console.error('Error in askFromUrl:', error.message);
-      return { error: 'Failed to process the request from URL.' };
+      return { error: error.message };
     }
   }
 
   @Post('ask-from-file')
   async askFromFile(@Body('question') question: string): Promise<{ answer: string } | { error: string }> {
-    try {
-      if (!this.memory.fileContent) {
-        throw new Error('Content for files not found.');
-      }
+    console.log('--- Received Request for Ask from File ---');
+    console.log('Question:', question);
 
-      const parts = this.openAiService.splitContent(this.memory.fileContent, 3000); // Split content into smaller parts
-      const answers = [];
-      for (const part of parts) {
-        const answer = await this.openAiService.getAnswerFromInitializedContent(question, part);
-        answers.push(answer);
-      }
-      return { answer: answers.join('\n') };
+    try {
+      const parts = this.openAiService.splitContent(this.memory.fileContent, 3000);
+      const answers = await Promise.all(
+          parts.map((part) => this.openAiService.getAnswerFromInitializedContent(question, part))
+      );
+      const combinedAnswer = answers.join('\n');
+      console.log('Combined Answer:', combinedAnswer);
+      return { answer: combinedAnswer };
     } catch (error) {
       console.error('Error in askFromFile:', error.message);
-      return { error: 'Failed to process the request from files.' };
+      return { error: error.message };
     }
   }
 }

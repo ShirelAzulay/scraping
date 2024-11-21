@@ -133,3 +133,7 @@ dist
 
 /.idea/*
 package-lock.json
+
+# Ignore service account JSON files
+config/*.json
+
