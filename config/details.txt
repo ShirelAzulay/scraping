@@ -1,0 +1,2 @@
+poc - bank yahav
+OpenAI with Shirel-Private key
