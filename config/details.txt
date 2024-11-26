@@ -1,0 +1,2 @@
+GCP
+Gemini-1.5-Pro
