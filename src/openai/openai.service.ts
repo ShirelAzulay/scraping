@@ -10,10 +10,36 @@ export class OpenAiService {
   private openai: OpenAIApi;
 
   constructor() {
+    const apiKey = this.loadApiKeyFromConfig();
+    if (!apiKey) {
+      throw new Error('Failed to load OpenAI API key. Ensure the key exists in the configuration file.');
+    }
+
     const configuration = new Configuration({
-      apiKey: process.env.OPENAI_API_KEY || '',
+      apiKey: apiKey,
     });
+
     this.openai = new OpenAIApi(configuration);
+    console.log('OpenAI API initialized successfully.');
+  }
+
+  // Function to load the API key from a JSON file
+  private loadApiKeyFromConfig(): string | null {
+    try {
+      const configPath = path.join(__dirname, '..', '..', 'config', 'bank-yahav-932-openai_token.json');
+      console.log(`Loading API key from config: ${configPath}`);
+      const configFile = fs.readFileSync(configPath, 'utf-8');
+      const config = JSON.parse(configFile);
+      if (config.apiKey) {
+        return config.apiKey;
+      } else {
+        console.error('API key not found in the configuration file.');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error loading API key from configuration file:', error.message);
+      return null;
+    }
   }
 
   async fetchWebsiteContent(url: string): Promise<string> {
