@@ -17,6 +17,24 @@
       }
     }
 
+    @keyframes spinText {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes gradientFlow {
+      0% {
+        background-position: 0% 50%;
+      }
+      100% {
+        background-position: 100% 50%;
+      }
+    }
+
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       display: flex;
@@ -29,6 +47,21 @@
       color: white;
       direction: rtl;
       text-align: right;
+    }
+
+    .dropdown {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+    }
+
+    .dropdown select {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: none;
+      background-color: rgba(255, 255, 255, 0.8);
+      color: #003366;
     }
 
     .container {
@@ -55,19 +88,21 @@
       text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
     }
 
-    input[type="text"], button {
-      padding: 15px;
-      font-size: 18px;
-      margin: 10px 0;
-      border-radius: 10px;
-      border: none;
-      width: 100%;
-      max-width: 600px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-      text-align: right;
+    .input-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
     }
 
     input[type="text"] {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
+      width: 70%;
+      max-width: 500px;
       background-color: rgba(255, 255, 255, 0.85);
       color: #003366;
       outline: none;
@@ -79,6 +114,10 @@
     }
 
     button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
       background-color: #0066cc;
       color: white;
       cursor: pointer;
@@ -96,38 +135,6 @@
       color: #ffffff;
       text-shadow: 1px 1px 8px rgba(0, 0, 0, 0.4);
       animation: fadeIn 1s ease forwards;
-    }
-
-    .footer {
-      margin-top: 40px;
-      font-size: 14px;
-      color: #ffffff;
-      text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.3);
-      text-align: center;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .footer img {
-      width: 40px;
-      vertical-align: middle;
-      margin-left: 10px;
-    }
-
-    .dropdown {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-    }
-
-    .dropdown select {
-      padding: 10px;
-      font-size: 16px;
-      border-radius: 5px;
-      border: none;
-      background-color: rgba(255, 255, 255, 0.8);
-      color: #003366;
     }
 
     .formatted-answer {
@@ -156,6 +163,62 @@
     .formatted-answer a:hover {
       text-decoration: underline;
     }
+
+    .loader {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 1000;
+    }
+
+    .circle-container {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin: 0 auto;
+    }
+
+    .circle-text {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 50%;
+      overflow: hidden;
+    }
+
+    .circle-text span {
+      display: block;
+      position: absolute;
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      white-space: nowrap;
+      background: linear-gradient(90deg, #003366, #0066cc, #99ccff, #003366);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: gradientFlow 4s linear infinite, spinText 6s linear infinite;
+    }
+
+    .gcp-poc {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.7);
+      text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.3);
+      padding: 10px 20px;
+      border-radius: 10px;
+    }
   </style>
 </head>
 <body>
@@ -171,15 +234,23 @@
   <div class="logo">
     <img src="new-logo-medium.jpg" alt="לוגו בנק יהב">
   </div>
-  <h1>שאל את שאלתך</h1>
-  <input type="text" id="question" placeholder="הכנס את שאלתך כאן">
-  <button onclick="askQuestion()">שאל</button>
+  <h1>במה אוכל לסייע?</h1>
+  <div class="input-container">
+    <input type="text" id="question" placeholder="הכנס את שאלתך כאן">
+    <button onclick="askQuestion()">שאל</button>
+  </div>
   <div class="answer" id="answer"></div>
-  <div class="footer">
-    <img src="ness-logo.jpg" alt="לוגו Ness Technologies">
-    פותח על ידי Ness Technologies
+</div>
+
+<div class="loader" id="loader">
+  <div class="circle-container">
+    <div class="circle-text">
+      <span>בנק יהב בשבילך</span>
+    </div>
   </div>
 </div>
+
+<div class="gcp-poc">GCP-Gemini-1.5-Pro</div>
 
 <script>
   async function askQuestion() {
@@ -192,6 +263,8 @@
             : JSON.stringify({ question });
 
     try {
+      const loader = document.getElementById('loader');
+      loader.style.display = 'block'; // הצגת הגלגל
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -203,11 +276,14 @@
         const formattedAnswer = formatAnswer(data.answer);
         document.getElementById('answer').innerHTML = formattedAnswer || 'לא התקבלה תשובה.';
       } else {
-        document.getElementById('answer').innerHTML = 'אירעה שגיאה. נסה שוב מאוחר יותר.';
+        document.getElementById('answer').innerHTML = 'המידע המבוקש לא זמין כרגע.';
       }
     } catch (error) {
       console.error(error);
-      document.getElementById('answer').innerHTML = 'אירעה שגיאה. נסה שוב מאוחר יותר.';
+      document.getElementById('answer').innerHTML = 'המידע המבוקש לא זמין כרגע.';
+    } finally {
+      const loader = document.getElementById('loader');
+      loader.style.display = 'none'; // הסתרת הגלגל
     }
   }
 
@@ -215,7 +291,7 @@
     let formattedAnswer = answer.replace(/\n/g, '<br>');
     formattedAnswer = formattedAnswer.replace(/(\d+\.)/g, '<strong>$1</strong>');
     formattedAnswer = formattedAnswer.replace(/\*\*/g, '').replace(/#/g, '');
-    formattedAnswer = formattedAnswer.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(match, text, url) {
+    formattedAnswer = formattedAnswer.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (match, text, url) {
       return `<a href="${url}" target="_blank">${text}</a>`;
     });
 
