@@ -1,3 +1,4 @@
+import * as natural from 'natural';
 import { Controller, Post, Body, OnModuleInit } from '@nestjs/common';
 import { OpenAiService } from './openai.service';
 
@@ -20,6 +21,40 @@ export class OpenAiController implements OnModuleInit {
     }
   }
 
+  private removeSimilarAnswers(answers: string[]): string[] {
+    const tokenizer = new natural.WordTokenizer();
+    const uniqueAnswers: string[] = [];
+
+    answers.forEach((answer) => {
+      const isSimilar = uniqueAnswers.some((existingAnswer) => {
+        const answerTokens = tokenizer.tokenize(answer.toLowerCase());
+        const existingTokens = tokenizer.tokenize(existingAnswer.toLowerCase());
+        const similarity = natural.JaroWinklerDistance(
+            answerTokens.join(' '),
+            existingTokens.join(' ')
+        );
+        return similarity > 0.85; // סף דמיון
+      });
+
+      if (!isSimilar) {
+        uniqueAnswers.push(answer.trim());
+      }
+    });
+
+    return uniqueAnswers;
+  }
+
+  private processAnswers(answers: string[]): string {
+    // סינון תשובות דומות
+    const filteredAnswers = this.removeSimilarAnswers(answers);
+
+    // סינון סופי של תשובות עם חזרות קלות
+    const finalAnswers = [...new Set(filteredAnswers.map((answer) => answer.trim()))];
+
+    // שילוב תשובות
+    return finalAnswers.join('\n');
+  }
+
   @Post('ask-from-url')
   async askFromUrl(@Body('question') question: string): Promise<{ answer: string } | { error: string }> {
     console.log('--- Received Request for Ask from URL ---');
@@ -27,8 +62,9 @@ export class OpenAiController implements OnModuleInit {
 
     try {
       const answer = await this.openAiService.getAnswerFromInitializedContent(question, this.memory.urlContent);
-      console.log('Answer:', answer);
-      return { answer };
+      const filteredAnswer = this.processAnswers([answer]);
+      console.log('Filtered Answer:', filteredAnswer);
+      return { answer: filteredAnswer };
     } catch (error) {
       console.error('Error in askFromUrl:', error.message);
       return { error: error.message };
@@ -45,8 +81,9 @@ export class OpenAiController implements OnModuleInit {
       const answers = await Promise.all(
           parts.map((part) => this.openAiService.getAnswerFromInitializedContent(question, part))
       );
-      const combinedAnswer = answers.join('\n');
-      console.log('Combined Answer:', combinedAnswer);
+
+      const combinedAnswer = this.processAnswers(answers);
+      console.log('Filtered Combined Answer:', combinedAnswer);
       return { answer: combinedAnswer };
     } catch (error) {
       console.error('Error in askFromFile:', error.message);
