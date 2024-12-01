@@ -95,7 +95,7 @@ export class OpenAiService {
     }
   }
 
-  async getAnswerFromInitializedContent(question: string, content: string): Promise<string> {
+  async getAnswerFromInitializedContent(question: string, content: string, temperature: number): Promise<string> {
     try {
       if (!content || content.trim() === '') {
         throw new Error('Content is empty or undefined.');
@@ -125,6 +125,7 @@ export class OpenAiService {
           { role: ChatCompletionRequestMessageRoleEnum.User, content: `השאלה: ${question}\nהתוכן:\n${content}` },
         ],
         max_tokens: 1000,
+        temperature: temperature
       };
 
       console.log('Sending request to OpenAI API with payload:', JSON.stringify(payload, null, 2));

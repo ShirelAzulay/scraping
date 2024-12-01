@@ -24,7 +24,8 @@ export class OpenAiController implements OnModuleInit {
       if (!this.memory.urlContent) {
         throw new Error('Content for URL not found.');
       }
-      const answer = await this.openAiService.getAnswerFromInitializedContent(question, this.memory.urlContent);
+      const temperature = 0.4;
+      const answer = await this.openAiService.getAnswerFromInitializedContent(question, this.memory.urlContent, temperature);
       return { answer };
     } catch (error) {
       console.error('Error in askFromUrl:', error.message);
@@ -42,7 +43,8 @@ export class OpenAiController implements OnModuleInit {
       const parts = this.openAiService.splitContent(this.memory.fileContent, 3000); // Split content into smaller parts
       const answers = [];
       for (const part of parts) {
-        const answer = await this.openAiService.getAnswerFromInitializedContent(question, part);
+        const temperature = 0.2;
+        const answer = await this.openAiService.getAnswerFromInitializedContent(question, part, temperature);
         answers.push(answer);
       }
       return { answer: answers.join('\n') };
