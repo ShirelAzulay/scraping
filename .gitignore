@@ -137,3 +137,5 @@ package-lock.json
 # Ignore service account JSON files
 config/*.json
 
+# Ignore files in customer input.
+public/customer_input/*
