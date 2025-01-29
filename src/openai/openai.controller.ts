@@ -33,7 +33,7 @@ export class OpenAiController implements OnModuleInit {
             answerTokens.join(' '),
             existingTokens.join(' ')
         );
-        return similarity > 0.85; // סף דמיון
+        return similarity > 0.8; // סף דמיון
       });
 
       if (!isSimilar) {
