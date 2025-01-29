@@ -49,21 +49,6 @@
             text-align: right;
         }
 
-        .dropdown {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-        }
-
-        .dropdown select {
-            padding: 10px;
-            font-size: 16px;
-            border-radius: 5px;
-            border: none;
-            background-color: rgba(255, 255, 255, 0.8);
-            color: #003366;
-        }
-
         .container {
             text-align: center;
             background: rgba(255, 255, 255, 0.2);
@@ -228,14 +213,6 @@
     </style>
 </head>
 <body>
-<div class="dropdown">
-    <label for="source">מקור:</label>
-    <select id="source">
-        <option value="url">URL</option>
-        <option value="file">File</option>
-    </select>
-</div>
-
 <div class="container">
     <div class="logo">
         <img src="new-logo-medium.jpg" alt="לוגו בנק יהב">
@@ -270,35 +247,36 @@
 
     async function askQuestion() {
         const question = document.getElementById('question').value;
-        const source = document.getElementById('source').value;
-
-        const endpoint = source === 'url' ? '/openai/ask-from-url' : '/openai/ask-from-file';
-        const body = source === 'url'
-            ? JSON.stringify({ question, url: 'https://www.bank-yahav.co.il/' })
-            : JSON.stringify({ question });
-
+        
         try {
             const loader = document.getElementById('loader');
-            loader.style.display = 'block'; // הצגת הגלגל
-            const response = await fetch(endpoint, {
+            loader.style.display = 'block';
+            
+            console.log('Sending question:', question); // Debug log
+            
+            const response = await fetch('/ido/ask', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body,
+                body: JSON.stringify({ question })
             });
 
+            console.log('Response status:', response.status); // Debug log
+            
             if (response.ok) {
                 const data = await response.json();
+                console.log('Response data:', data); // Debug log
                 const formattedAnswer = formatAnswer(data.answer);
                 document.getElementById('answer').innerHTML = formattedAnswer || 'לא התקבלה תשובה.';
             } else {
-                document.getElementById('answer').innerHTML = 'המידע המבוקש לא זמין כרגע.';
+                console.error('Server error:', response.status);
+                document.getElementById('answer').innerHTML = 'אירעה שגיאה בעת עיבוד השאלה. אנא נסה שוב.';
             }
         } catch (error) {
-            console.error(error);
-            document.getElementById('answer').innerHTML = 'המידע המבוקש לא זמין כרגע.';
+            console.error('Request error:', error);
+            document.getElementById('answer').innerHTML = 'אירעה שגיאה בעת עיבוד השאלה. אנא נסה שוב.';
         } finally {
             const loader = document.getElementById('loader');
-            loader.style.display = 'none'; // הסתרת הגלגל
+            loader.style.display = 'none';
         }
     }
 
