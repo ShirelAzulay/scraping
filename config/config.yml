@@ -2,7 +2,7 @@ modelConfig:
   temperature: 0.1
   topP: 0.6
   topK: 20
-  maxOutputTokens: 350
+  maxOutputTokens: 500
   presencePenalty: 0.8
   frequencyPenalty: 1
 fallbackResponse:

@@ -152,6 +152,7 @@ export class IdoService {
 
       //NestJS logger only
       this.logger.log(`Successfully got an answer of length: ${answer.length}`);
+      this.logger.log(`Answer payload: ${answer}`);
       return answer;
     } catch (error) {
       this.logger.error('Failed to get answer from GCP', {

@@ -138,4 +138,4 @@ package-lock.json
 config/*.json
 
 # Ignore files in customer input.
-public/customer_input/*
+public/customer_input/*.html
