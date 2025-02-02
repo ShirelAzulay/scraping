@@ -11,29 +11,43 @@ export class IdoController {
 
   @Post('ask')
   async ask(@Body('question') question: string): Promise<{ answer: string }> {
-    await this.logger.info('Received request', { question });
+    await this.logger.info('Received request', { 
+      question,
+      timestamp: new Date().toISOString() 
+    });
 
     if (!question?.trim()) {
+      const message = 'נא להזין שאלה';
       await this.logger.warn('Empty question received');
-      return { answer: 'נא להזין שאלה' };
+      return { answer: message };
     }
 
     try {
       const answer = await this.idoService.getAnswer(question);
+      
+      if (!answer) {
+        throw new Error('Empty answer received from service');
+      }
+
       await this.logger.info('Request processed successfully', {
         questionLength: question.length,
-        answerLength: answer.length
+        answerLength: answer.length,
+        timestamp: new Date().toISOString()
       });
+      
       return { answer };
     } catch (error) {
+      const errorMessage = error.message || 'Unknown error occurred';
+      
       await this.logger.error('Request processing failed', {
-        error: error.message,
-        stack: error.stack
+        error: errorMessage,
+        stack: error.stack,
+        question,
+        timestamp: new Date().toISOString()
       });
-      throw new HttpException(
-        `Error while processing question: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
+
+      // Return a user-friendly error message
+      return { answer: `אירעה שגיאה: ${errorMessage}` };
     }
   }
 }

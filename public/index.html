@@ -247,12 +247,14 @@
 
     async function askQuestion() {
         const question = document.getElementById('question').value;
+        const answerDiv = document.getElementById('answer');
         
         try {
             const loader = document.getElementById('loader');
             loader.style.display = 'block';
+            answerDiv.innerHTML = ''; // Clear previous answer
             
-            console.log('Sending question:', question); // Debug log
+            console.log('Sending question:', question);
             
             const response = await fetch('/ido/ask', {
                 method: 'POST',
@@ -260,20 +262,24 @@
                 body: JSON.stringify({ question })
             });
 
-            console.log('Response status:', response.status); // Debug log
-            
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Response data:', data); // Debug log
-                const formattedAnswer = formatAnswer(data.answer);
-                document.getElementById('answer').innerHTML = formattedAnswer || 'לא התקבלה תשובה.';
-            } else {
-                console.error('Server error:', response.status);
-                document.getElementById('answer').innerHTML = 'אירעה שגיאה בעת עיבוד השאלה. אנא נסה שוב.';
+            console.log('Response status:', response.status);
+            const data = await response.json();
+            console.log('Response data:', data);
+
+            if (!response.ok) {
+                throw new Error(`Server error: ${data.message || response.statusText}`);
             }
+
+            if (!data.answer) {
+                throw new Error('No answer received from server');
+            }
+
+            const formattedAnswer = formatAnswer(data.answer);
+            answerDiv.innerHTML = formattedAnswer;
+            
         } catch (error) {
             console.error('Request error:', error);
-            document.getElementById('answer').innerHTML = 'אירעה שגיאה בעת עיבוד השאלה. אנא נסה שוב.';
+            answerDiv.innerHTML = `שגיאה: ${error.message}`;
         } finally {
             const loader = document.getElementById('loader');
             loader.style.display = 'none';

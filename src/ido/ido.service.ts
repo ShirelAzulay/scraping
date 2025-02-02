@@ -1,5 +1,6 @@
 import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
-import { promises as fs } from 'fs'; //Use async file I/O
+import { promises as fs } from 'fs'; // Promise-based fs
+import * as fsSync from 'fs';        // Regular fs for existsSync
 import * as path from 'path';
 import * as cheerio from 'cheerio';
 import { parse } from 'yaml';
@@ -61,84 +62,127 @@ export class IdoService {
   private async loadCustomerInput(): Promise<void> {
     try {
       const dirPath = path.join(__dirname, '..', '..', 'public', 'customer_input');
-      await this.gcpLogger.info(`Loading input from directory: ${dirPath}`);
+      await this.gcpLogger.info('Starting to load customer input', {
+        directory: dirPath,
+        timestamp: new Date().toISOString()
+      });
 
       const allFiles = await fs.readdir(dirPath);
       const htmlFiles = allFiles.filter((f) => f.endsWith('.html'));
 
       if (htmlFiles.length === 0) {
+        await this.gcpLogger.error('No HTML files found', { directory: dirPath });
         throw new Error('No HTML files found in customer_input directory');
       }
 
       const contents: string[] = [];
 
+      // Process files sequentially with proper async/await
       for (const file of htmlFiles) {
         try {
           const filePath = path.join(dirPath, file);
+          await this.gcpLogger.debug('Processing file', {
+            file,
+            path: filePath
+          });
+
           const fileContent = await fs.readFile(filePath, 'utf-8');
-          const $ = cheerio.load(fileContent);
+          const $ = cheerio.load(fileContent); // Now fileContent is a string
           $('script, style, meta, link').remove();
           const text = $('body').text().replace(/\s+/g, ' ').trim();
           contents.push(text);
+
+          await this.gcpLogger.debug('Processed file content', {
+            file,
+            contentLength: text.length,
+            firstChars: text.substring(0, 100)
+          });
         } catch (fileError) {
-          this.logger.warn(`Failed to process file ${file}: ${fileError.message}`);
+          await this.gcpLogger.error('Failed to process individual file', {
+            file,
+            error: fileError.message,
+            stack: fileError.stack
+          });
         }
       }
 
       this.fileContent = contents.join('\n\n');
-      await this.gcpLogger.info(
-        `Loaded ${htmlFiles.length} file(s)`,
-        { contentLength: this.fileContent.length }
-      );
+
+      await this.gcpLogger.info('Customer input loading completed', {
+        totalContentLength: this.fileContent.length,
+        filesProcessed: htmlFiles.length,
+        timestamp: new Date().toISOString()
+      });
+
     } catch (error) {
       await this.gcpLogger.error('Failed to load customer input', {
         error: error.message,
-        stack: error.stack
+        stack: error.stack,
+        timestamp: new Date().toISOString()
       });
-      throw new InternalServerErrorException('Unable to load customer input files');
+      throw error;
     }
   }
 
   async getAnswer(question: string): Promise<string> {
-    await this.gcpLogger.info('Processing question', { question });
-
-    if (!this.fileContent) {
-      await this.gcpLogger.error('No content loaded');
-      throw new InternalServerErrorException('No content loaded from files');
-    }
-
     try {
+      await this.gcpLogger.info('Starting answer generation', {
+        question,
+        contentLength: this.fileContent.length,
+        hasSystemPrompt: !!this.prompts?.system_instructions,
+        timestamp: new Date().toISOString()
+      });
+
+      if (!this.fileContent) {
+        await this.gcpLogger.error('Content validation failed', {
+          error: 'No content loaded',
+          fileContentLength: 0
+        });
+        throw new InternalServerErrorException('No content loaded from files');
+      }
+
+      // Fix keyFile check
+      const keyFilePath = path.resolve(__dirname, '../../config/bank-yahav-932-67f76abeec67.json');
+      await this.gcpLogger.debug('Initializing GCP auth', {
+        keyFileExists: fsSync.existsSync(keyFilePath),
+        endpoint: this.gcpEndpoint
+      });
+
       const auth = new GoogleAuth({
-        keyFile: path.resolve(__dirname, '../../config/bank-yahav-932-67f76abeec67.json'),
+        keyFile: keyFilePath,
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
       });
+
       const client = await auth.getClient();
+      await this.gcpLogger.info('GCP auth successful');
 
       const payload = {
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: `Information:\n${this.fileContent}\n\nQuestion:\n${question}`,
-              },
-            ],
-          },
-        ],
+        contents: [{
+          role: 'user',
+          parts: [{
+            text: `Information:\n${this.fileContent}\n\nQuestion:\n${question}`,
+          }],
+        }],
         systemInstruction: {
           role: 'system',
-          parts: [
-            {
-              text: this.prompts?.system_instructions || '',
-            },
-          ],
+          parts: [{
+            text: this.prompts?.system_instructions || '',
+          }],
         },
         generationConfig: this.modelConfig,
       };
 
-      await this.gcpLogger.debug('Sending request to GCP', {
-        payloadLength: this.fileContent.length,
-        questionLength: question.length
+      await this.gcpLogger.debug('Prepared LLM payload', {
+        payloadSize: JSON.stringify(payload).length,
+        questionLength: question.length,
+        systemInstructionLength: this.prompts?.system_instructions?.length || 0,
+        modelConfig: this.modelConfig
+      });
+
+      // Log before API call
+      await this.gcpLogger.info('Sending request to LLM', {
+        timestamp: new Date().toISOString(),
+        endpoint: this.gcpEndpoint
       });
 
       const response = await client.request({
@@ -147,30 +191,62 @@ export class IdoService {
         data: payload,
       });
 
+      // Log raw response
+      await this.gcpLogger.debug('Received raw LLM response', {
+        statusCode: response.status,
+        hasData: !!response.data,
+        responseSize: JSON.stringify(response.data).length,
+        timestamp: new Date().toISOString()
+      });
+
       if (!response.data) {
+        await this.gcpLogger.error('Empty response from LLM', {
+          response: response,
+          timestamp: new Date().toISOString()
+        });
         throw new InternalServerErrorException('Empty response from GCP');
       }
 
       const gcpResponse = response.data as GCPResponse;
+      
+      // Log response structure validation
+      await this.gcpLogger.debug('Validating response structure', {
+        hasCandidates: !!gcpResponse.candidates,
+        candidatesLength: gcpResponse.candidates?.length,
+        hasContent: !!gcpResponse.candidates?.[0]?.content,
+        hasParts: !!gcpResponse.candidates?.[0]?.content?.parts
+      });
+
       const answer = gcpResponse.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
       if (!answer) {
-        this.logger.error('Invalid GCP response structure', gcpResponse);
+        await this.gcpLogger.error('Invalid response structure', {
+          rawResponse: gcpResponse,
+          timestamp: new Date().toISOString()
+        });
         throw new InternalServerErrorException('Invalid GCP response structure');
       }
 
-      await this.gcpLogger.info('Answer generated successfully', {
-        answerLength: answer.length
+      await this.gcpLogger.info('Successfully generated answer', {
+        questionLength: question.length,
+        answerLength: answer.length,
+        processingTime: Date.now() - new Date().getTime(),
+        timestamp: new Date().toISOString()
       });
-      
+
       return answer;
+
     } catch (error) {
-      await this.gcpLogger.error('Failed to get answer from GCP', {
+      await this.gcpLogger.error('Failed to get answer from LLM', {
         error: error.message,
         stack: error.stack,
-        response: error.response?.data
+        question,
+        errorType: error.constructor.name,
+        errorCode: error.code,
+        response: error.response?.data,
+        timestamp: new Date().toISOString()
       });
-      throw new InternalServerErrorException(error.message || 'GCP request failed');
+      throw error;
     }
   }
 }

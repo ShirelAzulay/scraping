@@ -5,7 +5,7 @@ import * as path from 'path';
 @Injectable()
 export class GcpLoggerService {
   private logging: Logging;
-  private logName = 'yahav-llm-logs';
+  private logName = 'yahav-poc-logs';
 
   constructor() {
     this.logging = new Logging({
@@ -25,15 +25,21 @@ export class GcpLoggerService {
       },
       labels: {
         environment: 'production',
-        application: 'yahav-llm',
+        application: 'yahav-poc',
       },
-      ...metadata && { jsonPayload: metadata }
-    }, message);
+      jsonPayload: {
+        message,
+        ...metadata,
+        timestamp: new Date().toISOString(),
+        service: 'yahav-poc'
+      }
+    });
 
     try {
       await log.write(entry);
     } catch (error) {
       console.error('Failed to write to GCP logs:', error);
+      console.log('Failed entry:', entry);
     }
   }
 
