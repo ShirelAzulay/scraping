@@ -1,32 +1,38 @@
-import { Controller, Post, Body, Logger, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
 import { IdoService } from './ido.service';
+import { GcpLoggerService } from '../utils/gcp-logger.service';
 
 @Controller('ido')
 export class IdoController {
-  private readonly logger = new Logger(IdoController.name);
-
-  constructor(private readonly idoService: IdoService) {}
+  constructor(
+    private readonly idoService: IdoService,
+    private readonly logger: GcpLoggerService
+  ) {}
 
   @Post('ask')
   async ask(@Body('question') question: string): Promise<{ answer: string }> {
-    //Basic validation and try-catch
-    this.logger.log(`Received question: ${question}`);
+    await this.logger.info('Received request', { question });
+
     if (!question?.trim()) {
-      this.logger.warn('Empty question received');
+      await this.logger.warn('Empty question received');
       return { answer: 'נא להזין שאלה' };
     }
 
     try {
       const answer = await this.idoService.getAnswer(question);
-      return { answer: answer || 'No answer returned from service' };
+      await this.logger.info('Request processed successfully', {
+        questionLength: question.length,
+        answerLength: answer.length
+      });
+      return { answer };
     } catch (error) {
-      this.logger.error('Error in ask endpoint', {
+      await this.logger.error('Request processing failed', {
         error: error.message,
-        stack: error.stack,
+        stack: error.stack
       });
       throw new HttpException(
-          `Error while processing question: ${error.message}`,
-          HttpStatus.INTERNAL_SERVER_ERROR,
+        `Error while processing question: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }

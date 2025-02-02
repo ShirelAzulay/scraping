@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as cheerio from 'cheerio';
 import { parse } from 'yaml';
 import { GoogleAuth } from 'google-auth-library';
+import { GcpLoggerService } from '../utils/gcp-logger.service';
 
 interface GCPResponse {
   candidates?: Array<{
@@ -25,7 +26,7 @@ export class IdoService {
   private prompts: any;
   private fileContent = '';
 
-  constructor() {
+  constructor(private readonly gcpLogger: GcpLoggerService) {
     this.initializeService().catch((error) => {
       //Handle errors during initialization
       this.logger.error('Service initialization failed', error.stack);
@@ -60,7 +61,7 @@ export class IdoService {
   private async loadCustomerInput(): Promise<void> {
     try {
       const dirPath = path.join(__dirname, '..', '..', 'public', 'customer_input');
-      this.logger.log(`Loading input from directory: ${dirPath}`);
+      await this.gcpLogger.info(`Loading input from directory: ${dirPath}`);
 
       const allFiles = await fs.readdir(dirPath);
       const htmlFiles = allFiles.filter((f) => f.endsWith('.html'));
@@ -85,20 +86,24 @@ export class IdoService {
       }
 
       this.fileContent = contents.join('\n\n');
-      this.logger.log(
-          `Loaded ${htmlFiles.length} file(s). Total content length: ${this.fileContent.length}`,
+      await this.gcpLogger.info(
+        `Loaded ${htmlFiles.length} file(s)`,
+        { contentLength: this.fileContent.length }
       );
     } catch (error) {
-      this.logger.error('Failed to load customer input', error.stack);
+      await this.gcpLogger.error('Failed to load customer input', {
+        error: error.message,
+        stack: error.stack
+      });
       throw new InternalServerErrorException('Unable to load customer input files');
     }
   }
 
   async getAnswer(question: string): Promise<string> {
-    this.logger.log(`Processing question: "${question}"`);
+    await this.gcpLogger.info('Processing question', { question });
 
-    // Step #1: Make sure we have content
     if (!this.fileContent) {
+      await this.gcpLogger.error('No content loaded');
       throw new InternalServerErrorException('No content loaded from files');
     }
 
@@ -131,7 +136,11 @@ export class IdoService {
         generationConfig: this.modelConfig,
       };
 
-      this.logger.log('Sending request to GCP...');
+      await this.gcpLogger.debug('Sending request to GCP', {
+        payloadLength: this.fileContent.length,
+        questionLength: question.length
+      });
+
       const response = await client.request({
         url: this.gcpEndpoint,
         method: 'POST',
@@ -150,15 +159,16 @@ export class IdoService {
         throw new InternalServerErrorException('Invalid GCP response structure');
       }
 
-      //NestJS logger only
-      this.logger.log(`Successfully got an answer of length: ${answer.length}`);
-      this.logger.log(`Answer payload: ${answer}`);
+      await this.gcpLogger.info('Answer generated successfully', {
+        answerLength: answer.length
+      });
+      
       return answer;
     } catch (error) {
-      this.logger.error('Failed to get answer from GCP', {
+      await this.gcpLogger.error('Failed to get answer from GCP', {
         error: error.message,
         stack: error.stack,
-        response: error.response?.data,
+        response: error.response?.data
       });
       throw new InternalServerErrorException(error.message || 'GCP request failed');
     }
