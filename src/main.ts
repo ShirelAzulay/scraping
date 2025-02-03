@@ -22,5 +22,12 @@ async function bootstrap() {
     logger.error('Failed to start application', error.stack);
     process.exit(1);
   }
+  process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+  });
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection:', reason);
+  });
+  
 }
 bootstrap();
