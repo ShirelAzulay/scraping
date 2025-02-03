@@ -1,6 +1,6 @@
 import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import { promises as fs } from 'fs'; // Promise-based fs
-import * as fsSync from 'fs';        // Regular fs for existsSync
+import * as fsSync from 'fs';        // Synchronous fs for existsSync
 import * as path from 'path';
 import * as cheerio from 'cheerio';
 import { parse } from 'yaml';
@@ -28,10 +28,11 @@ export class IdoService {
   private fileContent = '';
 
   constructor(private readonly gcpLogger: GcpLoggerService) {
+    // Instead of doing heavy async calls in constructor, we can use it in onModuleInit if needed.
     this.initializeService().catch((error) => {
-      //Handle errors during initialization
+      // Log initialization error
       this.logger.error('Service initialization failed', error.stack);
-      throw error; // Optionally throw to stop the app, or keep running with empty content
+      throw error;
     });
   }
 
@@ -45,10 +46,12 @@ export class IdoService {
       const configPath = path.join(__dirname, '..', '..', 'config', 'config.yml');
       const promptsPath = path.join(__dirname, '..', '..', 'config', 'prompts.json');
 
+      // Read config.yml
       const configFile = await fs.readFile(configPath, 'utf-8');
       const parsedConfig = parse(configFile);
       this.modelConfig = parsedConfig?.modelConfig;
 
+      // Read prompts.json
       const promptsData = await fs.readFile(promptsPath, 'utf-8');
       this.prompts = JSON.parse(promptsData);
 
@@ -77,7 +80,7 @@ export class IdoService {
 
       const contents: string[] = [];
 
-      // Process files sequentially with proper async/await
+      // Process files sequentially using async/await
       for (const file of htmlFiles) {
         try {
           const filePath = path.join(dirPath, file);
@@ -87,8 +90,8 @@ export class IdoService {
           });
 
           const fileContent = await fs.readFile(filePath, 'utf-8');
-          const $ = cheerio.load(fileContent); // Now fileContent is a string
-          $('script, style, meta, link').remove();
+          const $ = cheerio.load(fileContent);
+          $('script, style, meta, link').remove(); // Remove unnecessary tags
           const text = $('body').text().replace(/\s+/g, ' ').trim();
           contents.push(text);
 
@@ -106,6 +109,7 @@ export class IdoService {
         }
       }
 
+      // Join all files' text into a single content string
       this.fileContent = contents.join('\n\n');
 
       await this.gcpLogger.info('Customer input loading completed', {
@@ -125,7 +129,11 @@ export class IdoService {
   }
 
   async getAnswer(question: string): Promise<string> {
+    // Record the start time
+    const startTime = Date.now();
+
     try {
+      // Log the start of generating an answer
       await this.gcpLogger.info('Starting answer generation', {
         question,
         contentLength: this.fileContent.length,
@@ -133,6 +141,7 @@ export class IdoService {
         timestamp: new Date().toISOString()
       });
 
+      // Validate that fileContent is not empty
       if (!this.fileContent) {
         await this.gcpLogger.error('Content validation failed', {
           error: 'No content loaded',
@@ -141,37 +150,45 @@ export class IdoService {
         throw new InternalServerErrorException('No content loaded from files');
       }
 
-      // Fix keyFile check
+      // Check if the key file is accessible
       const keyFilePath = path.resolve(__dirname, '../../config/bank-yahav-932-67f76abeec67.json');
       await this.gcpLogger.debug('Initializing GCP auth', {
         keyFileExists: fsSync.existsSync(keyFilePath),
         endpoint: this.gcpEndpoint
       });
 
+      // Build Google Auth
       const auth = new GoogleAuth({
         keyFile: keyFilePath,
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
       });
-
       const client = await auth.getClient();
       await this.gcpLogger.info('GCP auth successful');
 
+      // Prepare LLM payload
       const payload = {
-        contents: [{
-          role: 'user',
-          parts: [{
-            text: `Information:\n${this.fileContent}\n\nQuestion:\n${question}`,
-          }],
-        }],
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                text: `Information:\n${this.fileContent}\n\nQuestion:\n${question}`,
+              },
+            ],
+          },
+        ],
         systemInstruction: {
           role: 'system',
-          parts: [{
-            text: this.prompts?.system_instructions || '',
-          }],
+          parts: [
+            {
+              text: this.prompts?.system_instructions || '',
+            },
+          ],
         },
         generationConfig: this.modelConfig,
       };
 
+      // Log debug info about the payload
       await this.gcpLogger.debug('Prepared LLM payload', {
         payloadSize: JSON.stringify(payload).length,
         questionLength: question.length,
@@ -179,7 +196,7 @@ export class IdoService {
         modelConfig: this.modelConfig
       });
 
-      // Log before API call
+      // Send request to GCP LLM with a timeout
       await this.gcpLogger.info('Sending request to LLM', {
         timestamp: new Date().toISOString(),
         endpoint: this.gcpEndpoint
@@ -189,9 +206,10 @@ export class IdoService {
         url: this.gcpEndpoint,
         method: 'POST',
         data: payload,
+        timeout: 15000, // 15 seconds
       });
 
-      // Log raw response
+      // Log raw response metadata
       await this.gcpLogger.debug('Received raw LLM response', {
         statusCode: response.status,
         hasData: !!response.data,
@@ -208,8 +226,8 @@ export class IdoService {
       }
 
       const gcpResponse = response.data as GCPResponse;
-      
-      // Log response structure validation
+
+      // Validate the response structure
       await this.gcpLogger.debug('Validating response structure', {
         hasCandidates: !!gcpResponse.candidates,
         candidatesLength: gcpResponse.candidates?.length,
@@ -227,10 +245,15 @@ export class IdoService {
         throw new InternalServerErrorException('Invalid GCP response structure');
       }
 
+      // Calculate the total processing time
+      const endTime = Date.now();
+      const processingTime = endTime - startTime;
+
+      // Final success log
       await this.gcpLogger.info('Successfully generated answer', {
         questionLength: question.length,
         answerLength: answer.length,
-        processingTime: Date.now() - new Date().getTime(),
+        processingTime, // Actual total time in milliseconds
         timestamp: new Date().toISOString()
       });
 

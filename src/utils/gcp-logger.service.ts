@@ -1,61 +1,48 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, LoggerService } from '@nestjs/common';
 import { Logging } from '@google-cloud/logging';
-import * as path from 'path';
 
 @Injectable()
-export class GcpLoggerService {
-  private logging: Logging;
-  private logName = 'yahav-poc-logs';
+export class GcpLoggerService implements LoggerService {
+  private readonly logging: Logging;
 
   constructor() {
-    this.logging = new Logging({
-      keyFilename: path.resolve(__dirname, '../../config/bank-yahav-932-67f76abeec67.json'),
-      projectId: 'bank-yahav-932',
-    });
+    // Initialize Google Cloud Logging if you have proper GCP environment
+    this.logging = new Logging({ projectId: 'your-project-id' });
   }
 
-  async log(severity: 'INFO' | 'ERROR' | 'WARNING' | 'DEBUG', message: string, metadata?: any) {
-    const log = this.logging.log(this.logName);
-    
-    const entry = log.entry({
-      severity,
-      timestamp: new Date(),
-      resource: {
-        type: 'global',
-      },
-      labels: {
-        environment: 'production',
-        application: 'yahav-poc',
-      },
-      jsonPayload: {
-        message,
-        ...metadata,
-        timestamp: new Date().toISOString(),
-        service: 'yahav-poc'
-      }
-    });
+  // NestJS LoggerService: log
+  async log(message: string, ...optionalParams: any[]) {
+    console.log('[INFO]', message, JSON.stringify(optionalParams));
+  }
 
-    try {
-      await log.write(entry);
-    } catch (error) {
-      console.error('Failed to write to GCP logs:', error);
-      console.log('Failed entry:', entry);
+  // Not strictly required by LoggerService, but let's keep it
+  async info(message: string, meta: any = {}) {
+    console.log('[INFO]', message, JSON.stringify(meta));
+  }
+
+  // Combine the two error methods into one
+  async error(message: string, traceOrMeta?: string | any, context?: string) {
+    if (traceOrMeta && typeof traceOrMeta === 'object') {
+      // If the second argument is an object, treat it as meta
+      console.error('[ERROR]', message, JSON.stringify(traceOrMeta));
+    } else {
+      // Otherwise treat it as the Nest standard signature: (message, trace?, context?)
+      console.error('[ERROR]', message, traceOrMeta || '', context || '');
     }
   }
 
-  async info(message: string, metadata?: any) {
-    await this.log('INFO', message, metadata);
+  // standard NestJS signature: warn
+  async warn(message: string, ...optionalParams: any[]) {
+    console.warn('[WARN]', message, JSON.stringify(optionalParams));
   }
 
-  async error(message: string, metadata?: any) {
-    await this.log('ERROR', message, metadata);
+  // debug
+  async debug(message: string, meta: any = {}) {
+    console.debug('[DEBUG]', message, JSON.stringify(meta));
   }
 
-  async warn(message: string, metadata?: any) {
-    await this.log('WARNING', message, metadata);
+  // verbose
+  async verbose(message: string, ...optionalParams: any[]) {
+    console.log('[VERBOSE]', message, ...optionalParams);
   }
-
-  async debug(message: string, metadata?: any) {
-    await this.log('DEBUG', message, metadata);
-  }
-} 
+}

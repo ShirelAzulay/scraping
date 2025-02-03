@@ -6,14 +6,17 @@ import { OpenAiService } from './openai.service';
 export class OpenAiController implements OnModuleInit {
   constructor(private readonly openAiService: OpenAiService) {}
 
+  // We'll keep a simple in-memory object to store data
   private memory = { urlContent: '', fileContent: '' };
 
   async onModuleInit(): Promise<void> {
     console.log('--- Initializing Content ---');
     try {
+      // Fetch content from the bank-yahav website
       this.memory.urlContent = await this.openAiService.fetchWebsiteContent('https://www.bank-yahav.co.il/');
       console.log('Initialized URL Content:', this.memory.urlContent);
 
+      // Read local files from "customer_input"
       this.memory.fileContent = await this.openAiService.readLocalFiles('customer_input');
       console.log('Initialized File Content:', this.memory.fileContent);
     } catch (error) {
@@ -21,6 +24,7 @@ export class OpenAiController implements OnModuleInit {
     }
   }
 
+  // Utility to remove similar answers
   private removeSimilarAnswers(answers: string[]): string[] {
     const tokenizer = new natural.WordTokenizer();
     const uniqueAnswers: string[] = [];
@@ -33,7 +37,8 @@ export class OpenAiController implements OnModuleInit {
             answerTokens.join(' '),
             existingTokens.join(' ')
         );
-        return similarity > 0.8; // סף דמיון
+        // If similarity > 0.8, we consider it almost the same
+        return similarity > 0.8;
       });
 
       if (!isSimilar) {
@@ -44,14 +49,15 @@ export class OpenAiController implements OnModuleInit {
     return uniqueAnswers;
   }
 
+  // Final processing of answers
   private processAnswers(answers: string[]): string {
-    // סינון תשובות דומות
+    // Remove near-duplicate answers
     const filteredAnswers = this.removeSimilarAnswers(answers);
 
-    // סינון סופי של תשובות עם חזרות קלות
+    // Deduplicate again by trimming
     const finalAnswers = [...new Set(filteredAnswers.map((answer) => answer.trim()))];
 
-    // שילוב תשובות
+    // Combine into a single string
     return finalAnswers.join('\n');
   }
 
@@ -77,11 +83,14 @@ export class OpenAiController implements OnModuleInit {
     console.log('Question:', question);
 
     try {
+      // Split the file content into parts of 3000 characters
       const parts = this.openAiService.splitContent(this.memory.fileContent, 3000);
+      // Send each part to the LLM
       const answers = await Promise.all(
           parts.map((part) => this.openAiService.getAnswerFromInitializedContent(question, part))
       );
 
+      // Combine all partial answers
       const combinedAnswer = this.processAnswers(answers);
       console.log('Filtered Combined Answer:', combinedAnswer);
       return { answer: combinedAnswer };

@@ -6,7 +6,6 @@ import { Injectable } from '@nestjs/common';
 import { parse } from 'yaml';
 import { GoogleAuth } from 'google-auth-library';
 
-// Define interfaces
 interface GCPResponse {
   candidates: Array<{
     content: {
@@ -25,6 +24,7 @@ export class OpenAiService {
   private prompts: any;
 
   constructor() {
+    // Load config.yml
     const configPath = path.join(__dirname, '..', '..', 'config', 'config.yml');
     try {
       const configFile = fs.readFileSync(configPath, 'utf-8');
@@ -36,6 +36,7 @@ export class OpenAiService {
       this.modelConfig = {};
     }
 
+    // Load prompts.json
     const promptsPath = path.join(__dirname, '..', '..', 'config', 'prompts.json');
     try {
       const promptsData = fs.readFileSync(promptsPath, 'utf-8');
@@ -46,6 +47,7 @@ export class OpenAiService {
       this.prompts = {};
     }
 
+    // Check for service account JSON
     const serviceAccountPath = path.resolve(__dirname, '../../config/bank-yahav-932-67f76abeec67.json');
     if (!fs.existsSync(serviceAccountPath)) {
       console.error(`Service account file not found: ${serviceAccountPath}`);
@@ -59,11 +61,11 @@ export class OpenAiService {
       const response = await axios.get(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-          Accept:
-              'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
           'Accept-Encoding': 'gzip, deflate, br',
           Connection: 'keep-alive',
         },
+        timeout: 15000, // 15-second timeout to avoid hanging
       });
       console.log('--- Successfully fetched content ---');
       const $ = cheerio.load(response.data);
@@ -96,19 +98,18 @@ export class OpenAiService {
     }
   }
 
-
   splitContent(content: string, maxLength: number): string[] {
     console.log('--- Splitting content ---');
-
     if (!content || typeof content !== 'string') {
       console.error('Content is undefined, null, or not a string.');
       return [];
     }
 
-    const parts = [];
-    while (content.length > 0) {
-      parts.push(content.substring(0, maxLength));
-      content = content.substring(maxLength);
+    const parts: string[] = [];
+    let remainingContent = content;
+    while (remainingContent.length > 0) {
+      parts.push(remainingContent.substring(0, maxLength));
+      remainingContent = remainingContent.substring(maxLength);
     }
 
     console.log('--- Content split into parts ---');
@@ -119,7 +120,7 @@ export class OpenAiService {
   async getAnswerFromInitializedContent(question: string, content: string): Promise<string> {
     console.log('--- Generating answer for the question ---');
     console.log('Question:', question);
-    console.log('Content:', content);
+    console.log('Content length:', content.length);
 
     if (!content || content.trim() === '') {
       return 'אין מספיק מידע כדי לענות על השאלה. אנא ספק פרטים נוספים.';
@@ -177,6 +178,7 @@ export class OpenAiService {
         headers: {
           'Content-Type': 'application/json',
         },
+        timeout: 15000, // 15-second timeout
       });
 
       const responseData = response.data as GCPResponse;
@@ -201,14 +203,14 @@ export class OpenAiService {
     }
   }
 
-// Utility function to remove duplicate or similar lines
+  // Utility function to remove duplicate or very similar lines
   private removeDuplicateLines(input: string): string {
     const lines = input.split('\n');
     const uniqueLines: string[] = [];
     const seenLines = new Set<string>();
 
     lines.forEach((line) => {
-      const normalizedLine = line.trim().toLowerCase(); // Normalize case and trim spaces
+      const normalizedLine = line.trim().toLowerCase();
       if (!seenLines.has(normalizedLine)) {
         uniqueLines.push(line);
         seenLines.add(normalizedLine);
@@ -217,5 +219,4 @@ export class OpenAiService {
 
     return uniqueLines.join('\n');
   }
-
 }

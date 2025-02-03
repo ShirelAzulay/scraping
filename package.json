@@ -1,12 +1,13 @@
 {
   "name": "nesspoc",
   "version": "1.0.0",
-  "description": "NestJS project with OpenAI integration for demo",
+  "description": "NestJS project with GCP Logging integration for demo",
   "main": "dist/main.js",
   "scripts": {
     "start": "nest start",
     "start:dev": "nest start --watch",
     "build": "nest build",
+    "pm2:start": "pm2 start dist/main.js --name nestApp",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "test": "jest",
