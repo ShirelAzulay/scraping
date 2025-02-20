@@ -256,7 +256,7 @@
             answerDiv.innerHTML = '';
             
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // Increase to 60 seconds
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // Increased to 60 seconds from 45
 
             const response = await fetch('/ido/ask', {
                 method: 'POST',
