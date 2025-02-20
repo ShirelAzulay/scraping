@@ -36,3 +36,6 @@ dist
 
 # Service account JSON (if you don't want to commit it)
 config/*.json
+public/customer_input/*.html
+public/customer_input/unified.html
+

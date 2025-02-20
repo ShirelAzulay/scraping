@@ -129,6 +129,36 @@ export class IdoService {
   }
 
   async getAnswer(question: string): Promise<string> {
+    const startTime = Date.now();
+    const TIMEOUT = 40000; // 40 seconds
+
+    try {
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Request timed out'));
+        }, TIMEOUT);
+      });
+
+      const answerPromise = this.generateAnswer(question);
+      const answer = await Promise.race([answerPromise, timeoutPromise]);
+
+      return answer as string;
+    } catch (error) {
+      await this.gcpLogger.error('Request failed', {
+        error: error.message,
+        duration: Date.now() - startTime,
+        question
+      });
+
+      if (error.message === 'Request timed out') {
+        throw new Error('קרתה תקלה, אנא נסה שנית');
+      }
+      throw error;
+    }
+  }
+
+  // Separate the actual answer generation
+  private async generateAnswer(question: string): Promise<string> {
     // Record the start time
     const startTime = Date.now();
 
@@ -206,7 +236,7 @@ export class IdoService {
         url: this.gcpEndpoint,
         method: 'POST',
         data: payload,
-        timeout: 15000, // 15 seconds
+        timeout: 35000, // 35 seconds
       });
 
       // Log raw response metadata

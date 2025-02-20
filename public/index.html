@@ -189,6 +189,7 @@
             background: linear-gradient(90deg, #003366, #0066cc, #99ccff, #003366);
             background-size: 200% 200%;
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             animation: gradientFlow 4s linear infinite, spinText 6s linear infinite;
         }
@@ -248,30 +249,34 @@
     async function askQuestion() {
         const question = document.getElementById('question').value;
         const answerDiv = document.getElementById('answer');
+        const loader = document.getElementById('loader');
         
         try {
-            const loader = document.getElementById('loader');
             loader.style.display = 'block';
-            answerDiv.innerHTML = ''; // Clear previous answer
+            answerDiv.innerHTML = '';
             
-            console.log('Sending question:', question);
-            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+
             const response = await fetch('/ido/ask', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question })
+                body: JSON.stringify({ question }),
+                signal: controller.signal
             });
 
-            console.log('Response status:', response.status);
-            const data = await response.json();
-            console.log('Response data:', data);
+            clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                throw new Error(`Server error: ${data.message || response.statusText}`);
+            // Check if response is HTML (error page)
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                throw new Error('קרתה תקלה, אנא נסה שנית');
             }
 
-            if (!data.answer) {
-                throw new Error('No answer received from server');
+            const data = await response.json();
+            
+            if (!response.ok || !data.answer) {
+                throw new Error(data.error || 'קרתה תקלה, אנא נסה שנית');
             }
 
             const formattedAnswer = formatAnswer(data.answer);
@@ -279,9 +284,10 @@
             
         } catch (error) {
             console.error('Request error:', error);
-            answerDiv.innerHTML = `שגיאה: ${error.message}`;
+            answerDiv.innerHTML = error.name === 'AbortError' 
+                ? 'התשובה לקחה זמן רב מדי, אנא נסה שנית'
+                : 'קרתה תקלה, אנא נסה שנית';
         } finally {
-            const loader = document.getElementById('loader');
             loader.style.display = 'none';
         }
     }
