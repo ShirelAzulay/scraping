@@ -130,7 +130,7 @@ export class IdoService {
 
   async getAnswer(question: string): Promise<string> {
     const startTime = Date.now();
-    const TIMEOUT = 40000; // 40 seconds
+    const TIMEOUT = 60000; // 60 seconds
 
     try {
       const timeoutPromise = new Promise((_, reject) => {
@@ -158,7 +158,7 @@ export class IdoService {
   }
 
   // Separate the actual answer generation
-  private async generateAnswer(question: string): Promise<string> {
+  private async generateAnswer(question: string, retryCount = 0): Promise<string> {
     // Record the start time
     const startTime = Date.now();
 
@@ -236,7 +236,7 @@ export class IdoService {
         url: this.gcpEndpoint,
         method: 'POST',
         data: payload,
-        timeout: 35000, // 35 seconds
+        timeout: 60000, // 60 seconds
       });
 
       // Log raw response metadata
@@ -290,6 +290,10 @@ export class IdoService {
       return answer;
 
     } catch (error) {
+      if (retryCount < 2 && (error.message.includes('timeout') || error.code === 'ECONNABORTED')) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return this.generateAnswer(question, retryCount + 1);
+      }
       await this.gcpLogger.error('Failed to get answer from LLM', {
         error: error.message,
         stack: error.stack,
